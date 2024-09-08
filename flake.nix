@@ -21,7 +21,6 @@
               sops-nix.nixosModules.sops
               ./configuration.nix
               ./kubernetes.nix
-              ./sops.nix
               { inherit nodeRole; }
             ];
           };
