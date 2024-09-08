@@ -93,7 +93,7 @@ resource "aws_instance" "controlplane_zero" {
 #!/usr/bin/env bash
 nix-shell -p git --run 'git clone https://github.com/Gardego5/cluster /opt/cluster'
 nix-shell -p git --run 'cd /opt/cluster && git pull'
-nixos-rebuild switch --flake /opt/cluster#server
+nix-shell -p git --run 'nixos-rebuild --flake /opt/cluster#server switch'
 touch /opt/cluster-environment
 USERDATA
 }
@@ -108,7 +108,7 @@ resource "aws_instance" "controlplane" {
 #!/usr/bin/env bash
 nix-shell -p git --run 'git clone https://github.com/Gardego5/cluster /opt/cluster'
 nix-shell -p git --run 'cd /opt/cluster && git pull'
-nixos-rebuild switch --flake /opt/cluster#server
+nix-shell -p git --run 'nixos-rebuild --flake /opt/cluster#server switch'
 echo "K3S_URL=https://${aws_instance.controlplane_zero.public_ip}:6443" > /opt/cluster-environment
 USERDATA
 }
@@ -123,7 +123,7 @@ resource "aws_instance" "workernode" {
 #!/usr/bin/env bash
 nix-shell -p git --run 'git clone https://github.com/Gardego5/cluster /opt/cluster'
 nix-shell -p git --run 'cd /opt/cluster && git pull'
-nixos-rebuild switch --flake /opt/cluster#agent
+nix-shell -p git --run 'nixos-rebuild --flake /opt/cluster#server switch'
 echo "K3S_URL=https://${aws_instance.controlplane_zero.public_ip}:6443" > /opt/cluster-environment
 USERDATA
 }
