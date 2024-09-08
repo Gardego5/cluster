@@ -15,7 +15,7 @@
       let
         pkgs = import nixpkgs { inherit system; };
         mkConfig = nodeRole:
-          pkgs.lib.nixosSystem {
+          nixpkgs.lib.nixosSystem {
             inherit system;
             modules = [
               sops-nix.nixosModules.sops
@@ -29,7 +29,7 @@
         devShells.default =
           pkgs.mkShell { packages = with pkgs; [ age ssh-to-age ]; };
 
-        nixosConfigurations.server = mkConfig "server";
-        nixosConfigurations.agent = mkConfig "agent";
+        packages.nixosConfigurations.server = mkConfig "server";
+        packages.nixosConfigurations.agent = mkConfig "agent";
       });
 }

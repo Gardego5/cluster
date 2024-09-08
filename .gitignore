@@ -1,6 +1,8 @@
 .direnv
 .envrc.private
 
+result
+
 # Local .terraform directories
 **/.terraform/*
 
