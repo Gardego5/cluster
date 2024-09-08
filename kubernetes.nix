@@ -18,7 +18,7 @@
         role = config.nodeRole;
         extraFlags = toString [ ];
         tokenFile = "/run/secrets/k3s/token";
-        configPath = "/etc/rancher/k3s/config.yaml";
+        configPath = "/etc/rancher/k3s/k3s.yaml";
         environmentFile = "/opt/cluster-environment";
       };
     }
