@@ -24,6 +24,27 @@ resource "aws_security_group" "cluster" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = 6443
+    to_port     = 6443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 8472
+    to_port     = 8472
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 2379
+    to_port     = 2379
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -84,18 +105,38 @@ data "aws_iam_policy_document" "cluster_role" {
   }
 }
 
+locals {
+  reinit_git = <<EOF
+nix-shell -p git --run '
+cd /etc/nixos
+if [[ $(git rev-parse --is-inside-work-tree) == "true" ]]; then
+  git pull
+else
+  git clone https://github.com/Gardego5/cluster /opt/cluster
+fi
+'
+EOF
+}
+
 resource "aws_instance" "controlplane_zero" {
   ami                    = data.aws_ami.nixos_arm64.id
   instance_type          = "t4g.small"
   key_name               = aws_key_pair.cluster.key_name
   vpc_security_group_ids = [aws_security_group.cluster.id]
+  iam_instance_profile   = aws_iam_instance_profile.cluster.id
   user_data              = <<USERDATA
 #!/usr/bin/env bash
-nix-shell -p git --run 'git clone https://github.com/Gardego5/cluster /opt/cluster'
-nix-shell -p git --run 'cd /opt/cluster && git pull'
-nix-shell -p git --run 'nixos-rebuild --flake /opt/cluster#server switch'
-touch /opt/cluster-environment
+${local.reinit_git}
+echo '{}' > /etc/nixos/.extra.nix
+nix-shell -p git --run 'nixos-rebuild switch --flake /etc/nixos#first --impure'
 USERDATA
+
+  root_block_device {
+    delete_on_termination = true
+    encrypted             = false
+    volume_size           = 20
+    volume_type           = "gp3"
+  }
 }
 
 resource "aws_instance" "controlplane" {
@@ -104,26 +145,41 @@ resource "aws_instance" "controlplane" {
   instance_type          = "t4g.small"
   key_name               = aws_key_pair.cluster.key_name
   vpc_security_group_ids = [aws_security_group.cluster.id]
+  iam_instance_profile   = aws_iam_instance_profile.cluster.id
   user_data              = <<USERDATA
 #!/usr/bin/env bash
-nix-shell -p git --run 'git clone https://github.com/Gardego5/cluster /opt/cluster'
-nix-shell -p git --run 'cd /opt/cluster && git pull'
-nix-shell -p git --run 'nixos-rebuild --flake /opt/cluster#server switch'
-echo "K3S_URL=https://${aws_instance.controlplane_zero.public_ip}:6443" > /opt/cluster-environment
+${local.reinit_git}
+echo '{ config.services.k3s.serverAddr = "https://${aws_instance.controlplane_zero.public_ip}:6443"; }' > /etc/nixos/.extra.nix
+nix-shell -p git --run 'nixos-rebuild switch --flake /etc/nixos#server --impure'
+'
 USERDATA
+
+  root_block_device {
+    delete_on_termination = true
+    encrypted             = false
+    volume_size           = 20
+    volume_type           = "gp3"
+  }
 }
 
 resource "aws_instance" "workernode" {
   count                  = 1
   ami                    = data.aws_ami.nixos_arm64.id
-  instance_type          = "t4g.micro"
+  instance_type          = "t4g.small"
   key_name               = aws_key_pair.cluster.key_name
   vpc_security_group_ids = [aws_security_group.cluster.id]
+  iam_instance_profile   = aws_iam_instance_profile.cluster.id
   user_data              = <<USERDATA
 #!/usr/bin/env bash
-nix-shell -p git --run 'git clone https://github.com/Gardego5/cluster /opt/cluster'
-nix-shell -p git --run 'cd /opt/cluster && git pull'
-nix-shell -p git --run 'nixos-rebuild --flake /opt/cluster#server switch'
-echo "K3S_URL=https://${aws_instance.controlplane_zero.public_ip}:6443" > /opt/cluster-environment
+${local.reinit_git}
+echo '{ config.services.k3s.serverAddr = "https://${aws_instance.controlplane_zero.public_ip}:6443"; }' > /etc/nixos/.extra.nix
+nix-shell -p git --run 'nixos-rebuild switch --flake /etc/nixos#agent --impure'
 USERDATA
+
+  root_block_device {
+    delete_on_termination = true
+    encrypted             = false
+    volume_size           = 20
+    volume_type           = "gp3"
+  }
 }

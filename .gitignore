@@ -3,6 +3,8 @@
 
 result
 
+.extra.nix
+
 # Local .terraform directories
 **/.terraform/*
 

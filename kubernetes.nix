@@ -1,6 +1,7 @@
 { config, lib, ... }: {
   options = {
-    nodeRole = lib.mkOption { type = lib.types.enum [ "server" "agent" ]; };
+    nodeRole =
+      lib.mkOption { type = lib.types.enum [ "first" "server" "agent" ]; };
   };
   config = lib.mkMerge [
     {
@@ -15,18 +16,27 @@
 
       services.k3s = {
         enable = true;
-        role = config.nodeRole;
         extraFlags = toString [ ];
         tokenFile = "/run/secrets/k3s/token";
         configPath = "/etc/rancher/k3s/k3s.yaml";
-        environmentFile = "/opt/cluster-environment";
+        clusterInit = true;
       };
     }
 
-    (lib.mkIf (config.nodeRole == "server") {
+    (lib.mkIf (config.nodeRole == "first") {
+      services.k3s.role = "server";
       networking.firewall.allowedTCPPorts = [
         2380 # k3s, etcd peers: required if using a "High Availability Embedded etcd" configuration
       ];
     })
+
+    (lib.mkIf (config.nodeRole == "server") {
+      services.k3s.role = "server";
+      networking.firewall.allowedTCPPorts = [
+        2380 # k3s, etcd peers: required if using a "High Availability Embedded etcd" configuration
+      ];
+    })
+
+    (lib.mkIf (config.nodeRole == "agent") { services.k3s.role = "agent"; })
   ];
 }

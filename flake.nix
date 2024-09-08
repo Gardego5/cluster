@@ -21,6 +21,7 @@
               sops-nix.nixosModules.sops
               ./configuration.nix
               ./kubernetes.nix
+              /etc/nixos/.extra.nix
               { inherit nodeRole; }
             ];
           };
@@ -28,6 +29,7 @@
         devShells.default =
           pkgs.mkShell { packages = with pkgs; [ age ssh-to-age ]; };
 
+        packages.nixosConfigurations.first = mkConfig "first";
         packages.nixosConfigurations.server = mkConfig "server";
         packages.nixosConfigurations.agent = mkConfig "agent";
       });
