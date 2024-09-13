@@ -112,7 +112,8 @@ cd /etc/nixos
 if [[ $(git rev-parse --is-inside-work-tree) == "true" ]]; then
   git pull
 else
-  git clone https://github.com/Gardego5/cluster /opt/cluster
+  rm -rf /etc/nixos/*
+  git clone https://github.com/Gardego5/cluster /etc/nixos
 fi
 '
 EOF
@@ -140,7 +141,7 @@ USERDATA
 }
 
 resource "aws_instance" "controlplane" {
-  count                  = 0
+  count                  = 2
   ami                    = data.aws_ami.nixos_arm64.id
   instance_type          = "t4g.small"
   key_name               = aws_key_pair.cluster.key_name
@@ -151,7 +152,6 @@ resource "aws_instance" "controlplane" {
 ${local.reinit_git}
 echo '{ config.services.k3s.serverAddr = "https://${aws_instance.controlplane_zero.public_ip}:6443"; }' > /etc/nixos/.extra.nix
 nix-shell -p git --run 'nixos-rebuild switch --flake /etc/nixos#server --impure'
-'
 USERDATA
 
   root_block_device {
@@ -163,7 +163,7 @@ USERDATA
 }
 
 resource "aws_instance" "workernode" {
-  count                  = 1
+  count                  = 0
   ami                    = data.aws_ami.nixos_arm64.id
   instance_type          = "t4g.small"
   key_name               = aws_key_pair.cluster.key_name

@@ -14,7 +14,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        mkConfig = nodeRole:
+        mkConfig = role:
           nixpkgs.lib.nixosSystem {
             inherit system;
             modules = [
@@ -22,7 +22,7 @@
               ./configuration.nix
               ./kubernetes.nix
               /etc/nixos/.extra.nix
-              { inherit nodeRole; }
+              { inherit role; }
             ];
           };
       in {
