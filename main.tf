@@ -103,20 +103,23 @@ data "aws_iam_policy_document" "cluster_role" {
     actions   = ["kms:Decrypt", "kms:DescribeKey"]
     resources = [aws_kms_key.kube_key.arn]
   }
+
+  statement {
+    effect  = "Allow"
+    actions = ["s3:GetObject", "s3:ListBucket"]
+    resources = [
+      aws_s3_bucket.configuration_files.arn, "${aws_s3_bucket.configuration_files.arn}/*",
+    ]
+  }
 }
 
 locals {
-  reinit_git = <<EOF
-nix-shell -p git --run '
-cd /etc/nixos
-if [[ $(git rev-parse --is-inside-work-tree) == "true" ]]; then
-  git pull
-else
-  rm -rf /etc/nixos/*
-  git clone https://github.com/Gardego5/cluster /etc/nixos
-fi
-'
+  cmd_nix_shell     = "nix-shell -p git awscli2"
+  cmd_s3_sync       = "aws s3 sync s3://${aws_s3_bucket.configuration_files.bucket}/ /etc/nixos/"
+  cmd_create_extra  = <<EOF
+echo "{ config.services.k3s.serverAddr = \"https://${aws_instance.controlplane_zero.public_ip}:6443\"; }" > /etc/nixos/extra.nix"
 EOF
+  cmd_nixos_rebuild = "nixos-rebuild switch --flake /etc/nixos"
 }
 
 resource "aws_instance" "controlplane_zero" {
@@ -127,9 +130,11 @@ resource "aws_instance" "controlplane_zero" {
   iam_instance_profile   = aws_iam_instance_profile.cluster.id
   user_data              = <<USERDATA
 #!/usr/bin/env bash
-${local.reinit_git}
-echo '{}' > /etc/nixos/.extra.nix
-nix-shell -p git --run 'nixos-rebuild switch --flake /etc/nixos#first --impure'
+${local.cmd_nix_shell} --run '
+${local.cmd_s3_sync}
+echo "{}" > /etc/nixos/extra.nix
+${local.cmd_nixos_rebuild}#first
+'
 USERDATA
 
   root_block_device {
@@ -149,9 +154,11 @@ resource "aws_instance" "controlplane" {
   iam_instance_profile   = aws_iam_instance_profile.cluster.id
   user_data              = <<USERDATA
 #!/usr/bin/env bash
-${local.reinit_git}
-echo '{ config.services.k3s.serverAddr = "https://${aws_instance.controlplane_zero.public_ip}:6443"; }' > /etc/nixos/.extra.nix
-nix-shell -p git --run 'nixos-rebuild switch --flake /etc/nixos#server --impure'
+${local.cmd_nix_shell} --run '
+${local.cmd_s3_sync}
+${local.cmd_create_extra}
+${local.cmd_nixos_rebuild}#server
+'
 USERDATA
 
   root_block_device {
@@ -171,9 +178,11 @@ resource "aws_instance" "workernode" {
   iam_instance_profile   = aws_iam_instance_profile.cluster.id
   user_data              = <<USERDATA
 #!/usr/bin/env bash
-${local.reinit_git}
-echo '{ config.services.k3s.serverAddr = "https://${aws_instance.controlplane_zero.public_ip}:6443"; }' > /etc/nixos/.extra.nix
-nix-shell -p git --run 'nixos-rebuild switch --flake /etc/nixos#agent --impure'
+${local.cmd_nix_shell} --run '
+${local.cmd_s3_sync}
+${local.cmd_create_extra}
+${local.cmd_nixos_rebuild}#agent
+'
 USERDATA
 
   root_block_device {

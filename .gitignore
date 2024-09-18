@@ -3,7 +3,8 @@
 
 result
 
-.extra.nix
+extra.nix
+secrets.yaml
 
 # Local .terraform directories
 **/.terraform/*

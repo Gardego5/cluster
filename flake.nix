@@ -21,7 +21,7 @@
               sops-nix.nixosModules.sops
               ./configuration.nix
               ./kubernetes.nix
-              /etc/nixos/.extra.nix
+              ./extra.nix
               { inherit role; }
             ];
           };

@@ -1,8 +1,0 @@
-keys:
-  - &kube_key
-    arn: arn:aws:kms:us-west-2:256777061266:key/78526753-3394-4174-9a94-0a4703487355
-creation_rules:
-  - path_regex: '[^/]+\.(yaml|json|env|ini)$'
-    key_groups:
-      - kms:
-          - *kube_key

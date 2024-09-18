@@ -4,6 +4,18 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    local = {
+      source  = "hashicorp/local"
+      version = "2.5.2"
+    }
+    sops = {
+      source  = "mattclegg/sops"
+      version = "0.7.1"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "3.6.3"
+    }
   }
 
   backend "s3" {
@@ -19,3 +31,5 @@ terraform {
 provider "aws" {
   region = "us-west-2"
 }
+
+provider "sops" {}
